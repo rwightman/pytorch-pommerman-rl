@@ -46,18 +46,12 @@ To use the DeepMind Control Suite environments, set the flag `--env-name dm.<dom
 * Python 3 (it might work with Python 2, but I didn't test it)
 * [PyTorch](http://pytorch.org/)
 * [Visdom](https://github.com/facebookresearch/visdom)
-* [OpenAI baselines](https://github.com/openai/baselines)
 
 In order to install requirements, follow:
 
 ```bash
 # PyTorch
 conda install pytorch torchvision -c soumith
-
-# Baselines for Atari preprocessing
-git clone https://github.com/openai/baselines.git
-cd baselines
-pip install -e .
 
 # Other requirements
 pip install -r requirements.txt

@@ -11,9 +11,9 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from arguments import get_args
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
-from baselines.common.vec_env.vec_normalize import VecNormalize
+from helpers.vec_env.dummy_vec_env import DummyVecEnv
+from helpers.vec_env.subproc_vec_env import SubprocVecEnv
+from helpers.vec_env.vec_normalize import VecNormalize
 from envs import make_env
 from model import Policy
 from storage import RolloutStorage

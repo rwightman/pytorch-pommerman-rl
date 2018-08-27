@@ -4,8 +4,8 @@ import gym
 import numpy as np
 from gym.spaces.box import Box
 
-from baselines import bench
-from baselines.common.atari_wrappers import make_atari, wrap_deepmind
+from helpers.monitor import Monitor
+from helpers.atari_wrappers import make_atari, wrap_deepmind
 
 try:
     import dm_control2gym
@@ -42,7 +42,7 @@ def make_env(env_id, seed, rank, log_dir, add_timestep):
             env = AddTimestep(env)
 
         if log_dir is not None:
-            env = bench.Monitor(env, os.path.join(log_dir, str(rank)))
+            env = Monitor(env, os.path.join(log_dir, str(rank)))
 
         if is_atari:
             env = wrap_deepmind(env)
