@@ -73,7 +73,7 @@ def main():
         envs.action_space,
         name='pomm',
         nn_kwargs={
-            'image_shape': [13, 11, 11],
+            'image_shape': [11, 11, 11],
             'recurrent': args.recurrent_policy,
             'hidden_size': 512,
         })

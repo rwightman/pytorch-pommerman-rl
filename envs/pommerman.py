@@ -29,16 +29,19 @@ def featurize(obs, agent_id):
     enemies = np.logical_and(ob >= pommerman.constants.Item.Agent0.value, ob != self_value)
     self = (ob == self_value)
     friends = (ob == pommerman.constants.Item.AgentDummy.value)
-
     ob_hot[:, :, 9] = friends.astype(np.float32)
     ob_hot[:, :, 10] = self.astype(np.float32)
     ob_hot[:, :, 11] = enemies.astype(np.float32)
+    ob_hot = np.delete(ob_hot, np.s_[12::], axis=2)
+
+    if True:
+        # replace powerups with single channel
+        powerup = ob_hot[:, :, 6] * 0.5 + ob_hot[:, :, 7] * 0.66667 + ob_hot[:, :, 8]
+        ob_hot[:, :, 6] = powerup
+        ob_hot = np.delete(ob_hot, [7, 8], axis=2)
 
     # insert bomb life channel next to bomb blast strength
     ob_hot = np.insert(ob_hot, 4, ob_bomb_life, axis=2)
-
-    # remove extra channels
-    ob_hot = np.delete(ob_hot, np.s_[13::], axis=2)
 
     self_ammo = make_np_float([obs["ammo"]])
     self_blast_strength = make_np_float([obs["blast_strength"]])
@@ -67,8 +70,8 @@ class PommermanEnvWrapper(gym.Wrapper):
 
     def _set_observation_space(self):
         bss = self.env._board_size**2
-        min_obs = [0] * bss * 13 + [0] * 3
-        max_obs = [1.0] * bss * 13 + [1.0] * 3
+        min_obs = [0] * bss * 11 + [0] * 3
+        max_obs = [1.0] * bss * 11 + [1.0] * 3
         self.observation_space = gym.spaces.Box(
             np.array(min_obs), np.array(max_obs))
 
