@@ -3,18 +3,14 @@ import glob
 import os
 import time
 
-import gym
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
 
 from arguments import get_args
 from helpers.vec_env.dummy_vec_env import DummyVecEnv
 from helpers.vec_env.subproc_vec_env import SubprocVecEnv
 from helpers.vec_env.vec_normalize import VecNormalize
-from envs import make_env
+from envs.make_env import *
 from model import Policy
 from storage import RolloutStorage
 from utils import update_current_obs
@@ -35,6 +31,7 @@ num_updates = int(args.num_frames) // args.num_steps // args.num_processes
 torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
+np.random.seed(args.seed)
 
 try:
     os.makedirs(args.log_dir)
@@ -46,7 +43,7 @@ except OSError:
 
 def main():
     print("#######")
-    print("WARNING: All rewards are clipped or normalized so you need to use a monitor (see envs.py) or visdom plot to get true rewards")
+    print("WARNING: All rewards are clipped or normalized so you need to use a monitor (see make_env.py) or visdom plot to get true rewards")
     print("#######")
 
     torch.set_num_threads(1)
@@ -65,14 +62,19 @@ def main():
     else:
         envs = DummyVecEnv(envs)
 
-    if len(envs.observation_space.shape) == 1:
+    if not args.no_norm and len(envs.observation_space.shape) == 1:
         envs = VecNormalize(envs, gamma=args.gamma)
 
     obs_shape = envs.observation_space.shape
     obs_shape = (obs_shape[0] * args.num_stack, *obs_shape[1:])
 
-    actor_critic = Policy(obs_shape, envs.action_space,
-        base_kwargs={'recurrent': args.recurrent_policy})
+    actor_critic = Policy(
+        obs_shape,
+        envs.action_space,
+        base_kwargs={
+            'recurrent': args.recurrent_policy,
+            'hidden_size': 256,
+        })
     actor_critic.to(device)
 
     if envs.action_space.__class__.__name__ == "Discrete":

@@ -22,10 +22,17 @@ try:
 except ImportError:
     pass
 
+try:
+    import envs.pommerman
+except ImportError:
+    pass
+
 
 def make_env(env_id, seed, rank, log_dir, add_timestep):
     def _thunk():
-        if env_id.startswith("dm"):
+        if env_id.startswith("Pomme"):
+            env = envs.pommerman.make_env(env_id)
+        elif env_id.startswith("dm"):
             _, domain, task = env_id.split('.')
             env = dm_control2gym.make(domain_name=domain, task_name=task)
         else:

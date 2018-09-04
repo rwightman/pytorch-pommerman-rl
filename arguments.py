@@ -7,8 +7,8 @@ def get_args():
     parser = argparse.ArgumentParser(description='RL')
     parser.add_argument('--algo', default='a2c',
                         help='algorithm to use: a2c | ppo | acktr')
-    parser.add_argument('--lr', type=float, default=7e-4,
-                        help='learning rate (default: 7e-4)')
+    parser.add_argument('--lr', type=float, default=5e-4,
+                        help='learning rate (default: 5e-4)')
     parser.add_argument('--eps', type=float, default=1e-5,
                         help='RMSprop optimizer epsilon (default: 1e-5)')
     parser.add_argument('--alpha', type=float, default=0.99,
@@ -37,8 +37,8 @@ def get_args():
                         help='number of batches for ppo (default: 32)')
     parser.add_argument('--clip-param', type=float, default=0.2,
                         help='ppo clip parameter (default: 0.2)')
-    parser.add_argument('--num-stack', type=int, default=4,
-                        help='number of frames to stack (default: 4)')
+    parser.add_argument('--num-stack', type=int, default=1,
+                        help='number of frames to stack (default: 1)')
     parser.add_argument('--log-interval', type=int, default=10,
                         help='log interval, one log per n updates (default: 10)')
     parser.add_argument('--save-interval', type=int, default=100,
@@ -63,6 +63,8 @@ def get_args():
                         help='disables visdom visualization')
     parser.add_argument('--port', type=int, default=8097,
                         help='port to run the server on (default: 8097)')
+    parser.add_argument('--no-norm', action='store_true', default=False,
+                        help='disables normalization')
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
