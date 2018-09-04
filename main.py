@@ -11,7 +11,7 @@ from helpers.vec_env.dummy_vec_env import DummyVecEnv
 from helpers.vec_env.subproc_vec_env import SubprocVecEnv
 from helpers.vec_env.vec_normalize import VecNormalize
 from envs.make_env import *
-from model import Policy
+from models.factory import create_policy
 from storage import RolloutStorage
 from utils import update_current_obs
 from visualize import visdom_plot
@@ -68,12 +68,14 @@ def main():
     obs_shape = envs.observation_space.shape
     obs_shape = (obs_shape[0] * args.num_stack, *obs_shape[1:])
 
-    actor_critic = Policy(
+    actor_critic = create_policy(
         obs_shape,
         envs.action_space,
-        base_kwargs={
+        name='pomm',
+        nn_kwargs={
+            'image_shape': [13, 11, 11],
             'recurrent': args.recurrent_policy,
-            'hidden_size': 256,
+            'hidden_size': 512,
         })
     actor_critic.to(device)
 

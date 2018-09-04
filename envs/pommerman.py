@@ -44,6 +44,8 @@ def featurize(obs, agent_id):
     self_blast_strength = make_np_float([obs["blast_strength"]])
     self_can_kick = make_np_float([obs["can_kick"]])
 
+    ob_hot = ob_hot.transpose((2, 0, 1))
+
     if True:
         def _rescale(x):
             return x
@@ -57,7 +59,7 @@ def featurize(obs, agent_id):
 
 
 class PommermanEnvWrapper(gym.Wrapper):
-    def __init__(self, env=None, original_features=True):
+    def __init__(self, env=None, original_features=False):
         super(PommermanEnvWrapper, self).__init__(env)
         self._original_features = original_features
         if not self._original_features:
