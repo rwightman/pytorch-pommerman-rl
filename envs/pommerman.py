@@ -9,7 +9,7 @@ def make_np_float(feature):
     return np.array(feature).astype(np.float32)
 
 
-def featurize(obs, agent_id):
+def featurize(obs, agent_id, replace_agents=True, replace_powerups=True):
     max_item = pommerman.constants.Item.Agent3.value
 
     ob = obs["board"]
@@ -20,28 +20,28 @@ def featurize(obs, agent_id):
     ob_values = max_item + 1
     ob_hot = np.eye(ob_values)[ob]
 
-    # replace bomb item channel with blast strength
-    #assert ob_bomb_blast_strength > 0 == ob_hot[:, :, 3] > 0
-    ob_hot[:, :, 3] = ob_bomb_blast_strength
-
     # replace agent item channels with friend, enemy, self channels
-    self_value = pommerman.constants.Item.Agent0.value + agent_id
-    enemies = np.logical_and(ob >= pommerman.constants.Item.Agent0.value, ob != self_value)
-    self = (ob == self_value)
-    friends = (ob == pommerman.constants.Item.AgentDummy.value)
-    ob_hot[:, :, 9] = friends.astype(np.float32)
-    ob_hot[:, :, 10] = self.astype(np.float32)
-    ob_hot[:, :, 11] = enemies.astype(np.float32)
-    ob_hot = np.delete(ob_hot, np.s_[12::], axis=2)
+    if replace_agents:
+        self_value = pommerman.constants.Item.Agent0.value + agent_id
+        enemies = np.logical_and(ob >= pommerman.constants.Item.Agent0.value, ob != self_value)
+        self = (ob == self_value)
+        friends = (ob == pommerman.constants.Item.AgentDummy.value)
+        ob_hot[:, :, 9] = friends.astype(np.float32)
+        ob_hot[:, :, 10] = self.astype(np.float32)
+        ob_hot[:, :, 11] = enemies.astype(np.float32)
+        ob_hot = np.delete(ob_hot, np.s_[12::], axis=2)
 
-    if True:
+    if replace_powerups:
         # replace powerups with single channel
         powerup = ob_hot[:, :, 6] * 0.5 + ob_hot[:, :, 7] * 0.66667 + ob_hot[:, :, 8]
         ob_hot[:, :, 6] = powerup
         ob_hot = np.delete(ob_hot, [7, 8], axis=2)
 
-    # insert bomb life channel next to bomb blast strength
-    ob_hot = np.insert(ob_hot, 4, ob_bomb_life, axis=2)
+    # replace bomb item channel with life
+    ob_hot[:, :, 3] = ob_bomb_life
+
+    # insert bomb blast strength channel next to bomb life
+    ob_hot = np.insert(ob_hot, 4, ob_bomb_blast_strength, axis=2)
 
     self_ammo = make_np_float([obs["ammo"]])
     self_blast_strength = make_np_float([obs["blast_strength"]])
@@ -51,8 +51,9 @@ def featurize(obs, agent_id):
 
     if True:
         def _rescale(x):
-            return x
-            #return (x - 0.5) * 2.0
+            #return x
+            return (x - 0.5) * 2.0
+        ob_hot = _rescale(ob_hot)
         self_ammo = _rescale(self_ammo / 10)
         self_blast_strength = _rescale(self_blast_strength / pommerman.constants.AGENT_VIEW_SIZE)
         self_can_kick = _rescale(self_can_kick)

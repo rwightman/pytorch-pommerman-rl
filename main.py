@@ -73,6 +73,7 @@ def main():
         envs.action_space,
         name='pomm',
         nn_kwargs={
+            'batch_norm': False,
             'image_shape': [11, 11, 11],
             'recurrent': args.recurrent_policy,
             'hidden_size': 512,
@@ -169,7 +170,7 @@ def main():
             if args.cuda:
                 save_model = copy.deepcopy(actor_critic).cpu()
 
-            save_model = [save_model,
+            save_model = [save_model.state_dict(),
                             hasattr(envs, 'ob_rms') and envs.ob_rms or None]
 
             torch.save(save_model, os.path.join(save_path, args.env_name + ".pt"))
