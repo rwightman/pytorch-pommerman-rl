@@ -26,7 +26,9 @@ if args.recurrent_policy:
     assert args.algo in ['a2c', 'ppo'], \
         'Recurrent policy is not implemented for ACKTR'
 
-num_updates = int(args.num_frames) // args.num_steps // args.num_processes
+update_factor = args.num_steps * args.num_processes
+num_updates = int(args.num_frames) // update_factor
+lr_update_schedule = None if args.lr_schedule is None else args.lr_schedule // update_factor
 
 torch.manual_seed(args.seed)
 if args.cuda:
@@ -86,18 +88,24 @@ def main():
         action_shape = envs.action_space.shape[0]
 
     if args.algo == 'a2c':
-        agent = algo.A2C_ACKTR(actor_critic, args.value_loss_coef,
-                               args.entropy_coef, lr=args.lr,
-                               eps=args.eps, alpha=args.alpha,
-                               max_grad_norm=args.max_grad_norm)
+        agent = algo.A2C_ACKTR(
+            actor_critic, args.value_loss_coef,
+            args.entropy_coef,
+            lr=args.lr, lr_schedule=lr_update_schedule,
+            eps=args.eps, alpha=args.alpha,
+            max_grad_norm=args.max_grad_norm)
     elif args.algo == 'ppo':
-        agent = algo.PPO(actor_critic, args.clip_param, args.ppo_epoch, args.num_mini_batch,
-                         args.value_loss_coef, args.entropy_coef, lr=args.lr,
-                               eps=args.eps,
-                               max_grad_norm=args.max_grad_norm)
+        agent = algo.PPO(
+            actor_critic, args.clip_param, args.ppo_epoch, args.num_mini_batch,
+            args.value_loss_coef, args.entropy_coef,
+            lr=args.lr, lr_schedule=lr_update_schedule,
+            eps=args.eps,
+            max_grad_norm=args.max_grad_norm)
     elif args.algo == 'acktr':
-        agent = algo.A2C_ACKTR(actor_critic, args.value_loss_coef,
-                               args.entropy_coef, acktr=True)
+        agent = algo.A2C_ACKTR(
+            actor_critic, args.value_loss_coef,
+            args.entropy_coef,
+            acktr=True)
 
     rollouts = RolloutStorage(args.num_steps, args.num_processes, obs_shape,
         envs.action_space, actor_critic.recurrent_hidden_state_size)
@@ -154,7 +162,7 @@ def main():
 
         rollouts.compute_returns(next_value, args.use_gae, args.gamma, args.tau)
 
-        value_loss, action_loss, dist_entropy = agent.update(rollouts)
+        value_loss, action_loss, dist_entropy = agent.update(rollouts, j)
 
         rollouts.after_update()
 

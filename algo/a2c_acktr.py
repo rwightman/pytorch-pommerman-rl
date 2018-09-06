@@ -11,6 +11,7 @@ class A2C_ACKTR():
                  value_loss_coef,
                  entropy_coef,
                  lr=None,
+                 lr_schedule=None,
                  eps=None,
                  alpha=None,
                  max_grad_norm=None,
@@ -29,8 +30,15 @@ class A2C_ACKTR():
         else:
             self.optimizer = optim.RMSprop(
                 actor_critic.parameters(), lr, eps=eps, alpha=alpha)
+            if lr_schedule is not None:
+                self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, lr_schedule)
+            else:
+                self.scheduler = None
 
-    def update(self, rollouts):
+    def update(self, rollouts, update_index):
+        if self.scheduler is not None:
+            self.scheduler.step(update_index)
+
         obs_shape = rollouts.obs.size()[2:]
         action_shape = rollouts.actions.size()[-1]
         num_steps, num_processes, _ = rollouts.rewards.size()

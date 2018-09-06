@@ -13,6 +13,7 @@ class PPO():
                  value_loss_coef,
                  entropy_coef,
                  lr=None,
+                 lr_schedule=None,
                  eps=None,
                  max_grad_norm=None):
 
@@ -28,8 +29,15 @@ class PPO():
         self.max_grad_norm = max_grad_norm
 
         self.optimizer = optim.Adam(actor_critic.parameters(), lr=lr, eps=eps)
+        if lr_schedule is not None:
+            self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, lr_schedule)
+        else:
+            self.scheduler = None
 
-    def update(self, rollouts):
+    def update(self, rollouts, update_index):
+        if self.scheduler is not None:
+            self.scheduler.step(update_index)
+
         advantages = rollouts.returns[:-1] - rollouts.value_preds[:-1]
         advantages = (advantages - advantages.mean()) / (
             advantages.std() + 1e-5)
