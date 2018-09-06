@@ -73,7 +73,7 @@ def main():
         envs.action_space,
         name='pomm',
         nn_kwargs={
-            'batch_norm': False,
+            'batch_norm': False if args.algo == 'acktr' else True,
             'image_shape': [11, 11, 11],
             'recurrent': args.recurrent_policy,
             'hidden_size': 512,
