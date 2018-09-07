@@ -3,8 +3,9 @@ from .model_generic import CNNBase, MLPBase
 from .policy import Policy
 
 
-def create_policy(obs_shape, action_space, name='basic', nn_kwargs={}):
+def create_policy(obs_space, action_space, name='basic', nn_kwargs={}):
     nn = None
+    obs_shape = obs_space.shape
     if name.lower() == 'basic':
         if len(obs_shape) == 3:
             nn = CNNBase(obs_shape[0], **nn_kwargs)

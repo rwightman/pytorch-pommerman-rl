@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import init, init_normc_
 
 
 class Flatten(nn.Module):
