@@ -166,7 +166,7 @@ def main():
                        np.max(episode_rewards), dist_entropy,
                        value_loss, action_loss))
 
-        if args.eval_interval is not None and len(episode_rewards) > 1 and j % args.eval_interval == 0:
+        if args.eval_interval is not None and len(episode_rewards) > 1 and j > 0 and j % args.eval_interval == 0:
             eval_envs = make_vec_envs(
                 args.env_name, args.seed + args.num_processes, args.num_processes, args.gamma,
                 args.no_norm, args.num_stack, eval_log_dir, args.add_timestep, device, allow_early_resets=True)
@@ -192,7 +192,7 @@ def main():
                             actor_critic.recurrent_hidden_state_size, device=device)
             eval_masks = torch.zeros(args.num_processes, 1, device=device)
 
-            while len(eval_episode_rewards) < 10:
+            while len(eval_episode_rewards) < 50:
                 with torch.no_grad():
                     _, action, _, eval_recurrent_hidden_states = actor_critic.act(
                         obs, eval_recurrent_hidden_states, eval_masks, deterministic=True)
@@ -203,6 +203,8 @@ def main():
                 for info in infos:
                     if 'episode' in info.keys():
                         eval_episode_rewards.append(info['episode']['r'])
+
+            eval_envs.close()
 
             print(" Evaluation using {} episodes: mean reward {:.5f}\n".
                 format(len(eval_episode_rewards), np.mean(eval_episode_rewards)))
