@@ -66,7 +66,7 @@ def main():
         name='pomm',
         nn_kwargs={
             'batch_norm': False if args.algo == 'acktr' else True,
-            'image_shape': [11, 11, 11],
+            'image_shape': [9, 11, 11],
             'recurrent': args.recurrent_policy,
             'hidden_size': 512,
         })

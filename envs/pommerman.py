@@ -1,5 +1,6 @@
 import pommerman
 import pommerman.characters
+import pommerman.envs
 import numpy as np
 import gym
 import random
@@ -41,7 +42,13 @@ def featurize(obs, agent_id, replace_agents=True, replace_powerups=True):
     ob_hot[:, :, 3] = ob_bomb_life
 
     # insert bomb blast strength channel next to bomb life
-    ob_hot = np.insert(ob_hot, 4, ob_bomb_blast_strength, axis=2)
+    #ob_hot = np.insert(ob_hot, 4, ob_bomb_blast_strength, axis=2)
+    ob_hot[:, :, 5] = ob_bomb_blast_strength
+
+    if True:
+        #ob_hot[:, :, 0] = ob_hot[:, :, 0] * 0.5 + ob_hot[:, :, 2] * 0.66667 + ob_hot[:, :, 1]
+        ob_hot[:, :, 1] = 0.5 * ob_hot[:, :, 2] + ob_hot[:, :, 1]
+        ob_hot = np.delete(ob_hot, [2], axis=2)
 
     self_ammo = make_np_float([obs["ammo"]])
     self_blast_strength = make_np_float([obs["blast_strength"]])
@@ -67,12 +74,12 @@ class PommermanEnvWrapper(gym.Wrapper):
         super(PommermanEnvWrapper, self).__init__(env)
         self._original_features = original_features
         if not self._original_features:
-            self._set_observation_space()
+            self._set_observation_space(channels=9)
 
-    def _set_observation_space(self):
+    def _set_observation_space(self, channels):
         bss = self.env._board_size**2
-        min_obs = [0] * bss * 11 + [0] * 3
-        max_obs = [1.0] * bss * 11 + [1.0] * 3
+        min_obs = [0] * bss * channels + [0] * 3
+        max_obs = [1.0] * bss * channels + [1.0] * 3
         self.observation_space = gym.spaces.Box(
             np.array(min_obs), np.array(max_obs))
 
@@ -114,6 +121,50 @@ class TrainingAgent(pommerman.agents.BaseAgent):
         return None
 
 
+def _ffa_partial_env():
+    """Start up a FFA config with the competition settings."""
+    env = pommerman.envs.v0.Pomme
+    game_type = pommerman.constants.GameType.FFA
+    env_entry_point = 'pommerman.envs.v0:Pomme'
+    env_id = 'PommeFFACompetition-v0'
+    env_kwargs = {
+        'game_type': game_type,
+        'board_size': pommerman.constants.BOARD_SIZE,
+        'num_rigid': pommerman.constants.NUM_RIGID,
+        'num_wood': pommerman.constants.NUM_WOOD,
+        'num_items': pommerman.constants.NUM_ITEMS,
+        'max_steps': pommerman.constants.MAX_STEPS,
+        'render_fps': pommerman.constants.RENDER_FPS,
+        'agent_view_size': pommerman.constants.AGENT_VIEW_SIZE,
+        'is_partially_observable': True,
+        'env': env_entry_point,
+    }
+    agent = pommerman.characters.Bomber
+    return locals()
+
+
+def _ffa_partial_fast_env():
+    """Start up a FFA config with the competition settings."""
+    env = pommerman.envs.v0.Pomme
+    game_type = pommerman.constants.GameType.FFA
+    env_entry_point = 'pommerman.envs.v0:Pomme'
+    env_id = 'PommeFFACompetitionFast-v0'
+    env_kwargs = {
+        'game_type': game_type,
+        'board_size': pommerman.constants.BOARD_SIZE,
+        'num_rigid': pommerman.constants.NUM_RIGID,
+        'num_wood': pommerman.constants.NUM_WOOD,
+        'num_items': pommerman.constants.NUM_ITEMS,
+        'max_steps': pommerman.constants.MAX_STEPS,
+        'render_fps': 1000,
+        'agent_view_size': pommerman.constants.AGENT_VIEW_SIZE,
+        'is_partially_observable': True,
+        'env': env_entry_point,
+    }
+    agent = pommerman.characters.Bomber
+    return locals()
+
+
 def make_env(config):
     training_agent = TrainingAgent()
     agent_list = [
@@ -122,7 +173,18 @@ def make_env(config):
         pommerman.agents.SimpleAgent(),
         pommerman.agents.SimpleAgent(),
     ]
-    env = pommerman.make(config, agent_list)
+    if config == "PommeFFAPartialFast-v0":
+        env_spec = _ffa_partial_fast_env()
+        env = pommerman.envs.v0.Pomme(**env_spec['env_kwargs'])
+        for id, agent in enumerate(agent_list):
+            assert isinstance(agent, pommerman.agents.BaseAgent)
+            # NOTE: This is IMPORTANT so that the agent character is initialized
+            agent.init_agent(id, env_spec['game_type'])
+        env.set_agents(agent_list)
+        #env.set_init_game_state(game_state_file)
+        #env.set_render_mode(render_mode)
+    else:
+        env = pommerman.make(config, agent_list)
     env.set_training_agent(training_agent.agent_id)
     env.set_init_game_state(None)
     return PommermanEnvWrapper(env)
