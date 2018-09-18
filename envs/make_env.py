@@ -1,4 +1,5 @@
 import os
+import types
 
 import gym
 import numpy as np
@@ -71,7 +72,7 @@ def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_r
 
 
 def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
-                  log_dir=None, add_timestep=False, device='cpu', allow_early_resets=False):
+                  log_dir=None, add_timestep=False, device='cpu', allow_early_resets=False, eval=False):
 
     envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets)
                 for i in range(num_processes)]
@@ -86,6 +87,16 @@ def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
             envs = VecNormalize(envs, ret=False)
         else:
             envs = VecNormalize(envs, gamma=gamma)
+        if eval:
+            # An ugly hack to remove updates
+            def _obfilt(self, obs):
+                if self.ob_rms:
+                    obs = np.clip((obs - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon),
+                                  -self.clipob, self.clipob)
+                    return obs
+                else:
+                    return obs
+            envs._obfilt = types.MethodType(_obfilt, envs)
 
     envs = VecPyTorch(envs, device)
 

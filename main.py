@@ -12,7 +12,7 @@ import algo
 from arguments import get_args
 from envs import make_vec_envs
 from models import create_policy
-from storage import RolloutStorage
+from storage import RolloutStorage, ReplayStorage
 from visualize import visdom_plot
 
 args = get_args()
@@ -56,13 +56,24 @@ def main():
         viz = Visdom(port=args.port)
         win = None
 
-    envs = make_vec_envs(
+    train_envs = make_vec_envs(
         args.env_name, args.seed, args.num_processes, args.gamma, args.no_norm, args.num_stack,
         args.log_dir, args.add_timestep, device, allow_early_resets=False)
 
+    if args.eval_interval:
+        eval_envs = make_vec_envs(
+            args.env_name, args.seed + args.num_processes, args.num_processes, args.gamma,
+            args.no_norm, args.num_stack, eval_log_dir, args.add_timestep, device,
+            allow_early_resets=True, eval=True)
+
+        if eval_envs.venv.__class__.__name__ == "VecNormalize":
+            eval_envs.venv.ob_rms = train_envs.venv.ob_rms
+    else:
+        eval_envs = None
+
     actor_critic = create_policy(
-        envs.observation_space,
-        envs.action_space,
+        train_envs.observation_space,
+        train_envs.action_space,
         name='pomm',
         nn_kwargs={
             'batch_norm': False if args.algo == 'acktr' else True,
@@ -80,6 +91,7 @@ def main():
             lr=args.lr, lr_schedule=lr_update_schedule,
             eps=args.eps, alpha=args.alpha,
             max_grad_norm=args.max_grad_norm)
+        agent = algo.SIL(agent)
     elif args.algo == 'ppo':
         agent = algo.PPO(
             actor_critic, args.clip_param, args.ppo_epoch, args.num_mini_batch,
@@ -93,11 +105,24 @@ def main():
             args.entropy_coef,
             acktr=True)
 
-    rollouts = RolloutStorage(args.num_steps, args.num_processes,
-                        envs.observation_space.shape, envs.action_space,
-                        actor_critic.recurrent_hidden_state_size)
+    if True:
+        replay = ReplayStorage(
+            5000,
+            args.num_processes,
+            args.gamma,
+            train_envs.observation_space.shape,
+            train_envs.action_space,
+            actor_critic.recurrent_hidden_state_size)
+    else:
+        replay = None
 
-    obs = envs.reset()
+    rollouts = RolloutStorage(
+        args.num_steps, args.num_processes,
+        train_envs.observation_space.shape,
+        train_envs.action_space,
+        actor_critic.recurrent_hidden_state_size)
+
+    obs = train_envs.reset()
     rollouts.obs[0].copy_(obs)
     rollouts.to(device)
 
@@ -114,15 +139,17 @@ def main():
                         rollouts.masks[step])
 
             # Obser reward and next obs
-            obs, reward, done, infos = envs.step(action)
+            obs, reward, done, infos = train_envs.step(action)
 
             for info in infos:
                 if 'episode' in info.keys():
                     episode_rewards.append(info['episode']['r'])
 
             # If done then clean the history of observations.
-            masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
+            masks = torch.tensor([[0.0] if done_ else [1.0] for done_ in done], device=device)
             rollouts.insert(obs, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
+            if replay is not None:
+                replay.insert(obs, recurrent_hidden_states, action, reward, done)
 
         with torch.no_grad():
             next_value = actor_critic.get_value(rollouts.obs[-1],
@@ -131,7 +158,7 @@ def main():
 
         rollouts.compute_returns(next_value, args.use_gae, args.gamma, args.tau)
 
-        value_loss, action_loss, dist_entropy = agent.update(rollouts, j)
+        value_loss, action_loss, dist_entropy = agent.update(rollouts, j, replay)
 
         rollouts.after_update()
 
@@ -148,7 +175,7 @@ def main():
                 save_model = copy.deepcopy(actor_critic).cpu()
 
             save_model = [save_model.state_dict(),
-                            hasattr(envs.venv, 'ob_rms') and envs.venv.ob_rms or None]
+                            hasattr(train_envs.venv, 'ob_rms') and train_envs.venv.ob_rms or None]
 
             torch.save(save_model, os.path.join(save_path, args.env_name + ".pt"))
 
@@ -166,25 +193,7 @@ def main():
                        np.max(episode_rewards), dist_entropy,
                        value_loss, action_loss))
 
-        if args.eval_interval is not None and len(episode_rewards) > 1 and j > 0 and j % args.eval_interval == 0:
-            eval_envs = make_vec_envs(
-                args.env_name, args.seed + args.num_processes, args.num_processes, args.gamma,
-                args.no_norm, args.num_stack, eval_log_dir, args.add_timestep, device, allow_early_resets=True)
-
-            if eval_envs.venv.__class__.__name__ == "VecNormalize":
-                eval_envs.venv.ob_rms = envs.venv.ob_rms
-
-                # An ugly hack to remove updates
-                def _obfilt(self, obs):
-                    if self.ob_rms:
-                        obs = np.clip((obs - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon),
-                                      -self.clipob, self.clipob)
-                        return obs
-                    else:
-                        return obs
-
-                eval_envs.venv._obfilt = types.MethodType(_obfilt, envs.venv)
-
+        if args.eval_interval and len(episode_rewards) > 1 and j > 0 and j % args.eval_interval == 0:
             eval_episode_rewards = []
 
             obs = eval_envs.reset()
@@ -199,12 +208,10 @@ def main():
 
                 # Obser reward and next obs
                 obs, reward, done, infos = eval_envs.step(action)
-                eval_masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
+                eval_masks = torch.tensor([[0.0] if done_ else [1.0] for done_ in done], device=device)
                 for info in infos:
                     if 'episode' in info.keys():
                         eval_episode_rewards.append(info['episode']['r'])
-
-            eval_envs.close()
 
             print(" Evaluation using {} episodes: mean reward {:.5f}\n".
                 format(len(eval_episode_rewards), np.mean(eval_episode_rewards)))
