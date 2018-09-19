@@ -10,7 +10,7 @@ class SIL:
             sil_epochs=1,
             sil_value_loss_coef=0.01,
             sil_batch_size=64,
-            sil_entropy_coef=0.01,
+            sil_entropy_coef=0.,
 
     ):
         self.sil_update_ratio = sil_update_ratio

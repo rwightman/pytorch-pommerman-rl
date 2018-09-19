@@ -34,7 +34,7 @@ class PPO():
         else:
             self.scheduler = None
 
-    def update(self, rollouts, update_index):
+    def update(self, rollouts, update_index, replay=None):
         if self.scheduler is not None:
             self.scheduler.step(update_index)
 

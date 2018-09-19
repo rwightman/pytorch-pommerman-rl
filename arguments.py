@@ -39,6 +39,14 @@ def get_args():
                         help='number of batches for ppo (default: 32)')
     parser.add_argument('--clip-param', type=float, default=0.2,
                         help='ppo clip parameter (default: 0.2)')
+    parser.add_argument('--sil-update-ratio', type=float, default=1.0,
+                        help='sil off-policy updates per on-policy updates (default: 1.0)')
+    parser.add_argument('--sil-batch-size', type=int, default=80,
+                        help='sil batch size (default: 80)')
+    parser.add_argument('--sil-entropy-coef', type=float, default=0.,
+                        help='entropy term coefficient (default: 0.0)')
+    parser.add_argument('--sil-value-loss-coef', type=float, default=0.01,
+                        help='value loss coefficient (default: 0.01)')
     parser.add_argument('--num-stack', type=int, default=1,
                         help='number of frames to stack (default: 1)')
     parser.add_argument('--log-interval', type=int, default=10,

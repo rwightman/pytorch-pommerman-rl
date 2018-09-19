@@ -17,10 +17,10 @@ from visualize import visdom_plot
 
 args = get_args()
 
-assert args.algo in ['a2c', 'ppo', 'acktr']
+assert args.algo in ['a2c', 'a2c-sil', 'ppo', 'ppo-sil', 'acktr']
 if args.recurrent_policy:
     assert args.algo in ['a2c', 'ppo'], \
-        'Recurrent policy is not implemented for ACKTR'
+        'Recurrent policy is not implemented for ACKTR or SIL'
 
 update_factor = args.num_steps * args.num_processes
 num_updates = int(args.num_frames) // update_factor
@@ -84,15 +84,14 @@ def main():
 
     actor_critic.to(device)
 
-    if args.algo == 'a2c':
+    if args.algo.startswith('a2c'):
         agent = algo.A2C_ACKTR(
             actor_critic, args.value_loss_coef,
             args.entropy_coef,
             lr=args.lr, lr_schedule=lr_update_schedule,
             eps=args.eps, alpha=args.alpha,
             max_grad_norm=args.max_grad_norm)
-        agent = algo.SIL(agent)
-    elif args.algo == 'ppo':
+    elif args.algo.startswith('ppo'):
         agent = algo.PPO(
             actor_critic, args.clip_param, args.ppo_epoch, args.num_mini_batch,
             args.value_loss_coef, args.entropy_coef,
@@ -105,9 +104,15 @@ def main():
             args.entropy_coef,
             acktr=True)
 
-    if True:
+    if args.algo.endswith('sil'):
+        agent = algo.SIL(
+            agent,
+            sil_update_ratio=args.sil_update_ratio,
+            sil_batch_size=args.sil_batch_size,
+            sil_value_loss_coef=args.sil_value_loss_coef or args.value_loss_coef,
+            sil_entropy_coef=args.sil_entropy_coef or args.entropy_coef)
         replay = ReplayStorage(
-            5000,
+            10000,
             args.num_processes,
             args.gamma,
             train_envs.observation_space.shape,
