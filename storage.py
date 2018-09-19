@@ -208,10 +208,10 @@ class ReplayStorage:
     def insert(self, obs, rhs, actions, rewards, dones):
         for n in range(self.num_processes):
             self.running_episodes[n].append(dict(
-                obs=obs[n],
-                rhs=rhs[n],
-                action=actions[n],
-                reward=rewards[n]
+                obs=obs[n].clone(),
+                rhs=rhs[n].clone(),
+                action=actions[n].clone(),
+                reward=rewards[n].clone()
             ))
         for n, done in enumerate(dones):
             if done:
@@ -222,7 +222,7 @@ class ReplayStorage:
         batch_count = 0
         indices = np.random.permutation(range(self.num_steps))
         for si in range(0, len(indices), batch_size):
-            batch_indices = indices[si:max(len(indices), si + batch_size)]
+            batch_indices = indices[si:min(len(indices), si + batch_size)]
             if len(batch_indices) < batch_size:
                 return
 

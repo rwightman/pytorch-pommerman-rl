@@ -149,7 +149,12 @@ def main():
             masks = torch.tensor([[0.0] if done_ else [1.0] for done_ in done], device=device)
             rollouts.insert(obs, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
             if replay is not None:
-                replay.insert(obs, recurrent_hidden_states, action, reward, done)
+                replay.insert(
+                    rollouts.obs[step],
+                    rollouts.recurrent_hidden_states[step],
+                    action,
+                    reward,
+                    done)
 
         with torch.no_grad():
             next_value = actor_critic.get_value(rollouts.obs[-1],
