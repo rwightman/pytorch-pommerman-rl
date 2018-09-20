@@ -43,7 +43,7 @@ def get_args():
                         help='sil off-policy updates per on-policy updates (default: 1.0)')
     parser.add_argument('--sil-batch-size', type=int, default=80,
                         help='sil batch size (default: 80)')
-    parser.add_argument('--sil-entropy-coef', type=float, default=0.,
+    parser.add_argument('--sil-entropy-coef', type=float, default=0.01,
                         help='entropy term coefficient (default: 0.0)')
     parser.add_argument('--sil-value-loss-coef', type=float, default=0.01,
                         help='value loss coefficient (default: 0.01)')

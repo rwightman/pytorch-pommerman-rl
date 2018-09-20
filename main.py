@@ -12,7 +12,8 @@ import algo
 from arguments import get_args
 from envs import make_vec_envs
 from models import create_policy
-from storage import RolloutStorage, ReplayStorage
+from rollout_storage import RolloutStorage
+from replay_storage import ReplayStorage
 from visualize import visdom_plot
 
 args = get_args()
@@ -107,17 +108,19 @@ def main():
     if args.algo.endswith('sil'):
         agent = algo.SIL(
             agent,
-            sil_update_ratio=args.sil_update_ratio,
-            sil_batch_size=args.sil_batch_size,
-            sil_value_loss_coef=args.sil_value_loss_coef or args.value_loss_coef,
-            sil_entropy_coef=args.sil_entropy_coef or args.entropy_coef)
+            update_ratio=args.sil_update_ratio,
+            batch_size=args.sil_batch_size,
+            value_loss_coef=args.sil_value_loss_coef or args.value_loss_coef,
+            entropy_coef=args.sil_entropy_coef or args.entropy_coef)
         replay = ReplayStorage(
             10000,
             args.num_processes,
             args.gamma,
+            0.1,
             train_envs.observation_space.shape,
             train_envs.action_space,
-            actor_critic.recurrent_hidden_state_size)
+            actor_critic.recurrent_hidden_state_size,
+            device=device)
     else:
         replay = None
 
