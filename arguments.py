@@ -41,6 +41,8 @@ def get_args():
                         help='ppo clip parameter (default: 0.2)')
     parser.add_argument('--sil-update-ratio', type=float, default=1.0,
                         help='sil off-policy updates per on-policy updates (default: 1.0)')
+    parser.add_argument('--sil-epochs', type=int, default=1,
+                        help='number of sil epochs (default: 1)')
     parser.add_argument('--sil-batch-size', type=int, default=80,
                         help='sil batch size (default: 80)')
     parser.add_argument('--sil-entropy-coef', type=float, default=0.01,

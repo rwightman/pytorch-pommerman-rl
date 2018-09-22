@@ -109,11 +109,12 @@ def main():
         agent = algo.SIL(
             agent,
             update_ratio=args.sil_update_ratio,
+            epochs=args.sil_epochs,
             batch_size=args.sil_batch_size,
             value_loss_coef=args.sil_value_loss_coef or args.value_loss_coef,
             entropy_coef=args.sil_entropy_coef or args.entropy_coef)
         replay = ReplayStorage(
-            10000,
+            5e5,
             args.num_processes,
             args.gamma,
             0.1,
@@ -171,7 +172,7 @@ def main():
 
         rollouts.compute_returns(next_value, args.use_gae, args.gamma, args.tau)
 
-        value_loss, action_loss, dist_entropy = agent.update(rollouts, j, replay)
+        value_loss, action_loss, dist_entropy, other_metrics = agent.update(rollouts, j, replay)
 
         rollouts.after_update()
 
@@ -196,7 +197,8 @@ def main():
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             end = time.time()
-            print("Updates {}, num timesteps {}, FPS {}, last {} mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}".
+            print("Updates {}, num timesteps {}, FPS {}, last {} mean/median reward {:.1f}/{:.1f}, "
+                  "min / max reward {:.1f}/{:.1f}, value/action loss {:.5f}/{:.5f}".
                 format(j, total_num_steps,
                        int(total_num_steps / (end - start)),
                        len(episode_rewards),
@@ -204,7 +206,12 @@ def main():
                        np.median(episode_rewards),
                        np.min(episode_rewards),
                        np.max(episode_rewards), dist_entropy,
-                       value_loss, action_loss))
+                       value_loss, action_loss), end=', ' if other_metrics else '\n')
+            if 'sil_value_loss' in other_metrics:
+                print("SIL value/action loss {:.1f}/{:.1f}.".format(
+                    other_metrics['sil_value_loss'],
+                    other_metrics['sil_action_loss']
+                ))
 
         if args.eval_interval and len(episode_rewards) > 1 and j > 0 and j % args.eval_interval == 0:
             eval_episode_rewards = []

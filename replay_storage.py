@@ -11,20 +11,20 @@ class ReplayStorage:
             self, max_steps, num_processes, gamma, prio_alpha,
             obs_shape, action_space, recurrent_hidden_state_size,
             device):
-        self.max_steps = max_steps
+        self.max_steps = int(max_steps)
         self.num_processes = num_processes
         self.gamma = gamma
         self.device = device
 
         # stored episode data
-        self.obs = torch.zeros(max_steps, *obs_shape)
-        self.recurrent_hidden_states = torch.zeros(max_steps, recurrent_hidden_state_size)
-        self.returns = torch.zeros(max_steps, 1)
+        self.obs = torch.zeros(self.max_steps, *obs_shape)
+        self.recurrent_hidden_states = torch.zeros(self.max_steps, recurrent_hidden_state_size)
+        self.returns = torch.zeros(self.max_steps, 1)
         if action_space.__class__.__name__ == 'Discrete':
-            self.actions = torch.zeros(max_steps, 1).long()
+            self.actions = torch.zeros(self.max_steps, 1).long()
         else:
-            self.actions = torch.zeros(max_steps, action_space.shape[0])
-        self.masks = torch.ones(max_steps, 1)
+            self.actions = torch.zeros(self.max_steps, action_space.shape[0])
+        self.masks = torch.ones(self.max_steps, 1)
         self.next_idx = 0
         self.num_steps = 0
 

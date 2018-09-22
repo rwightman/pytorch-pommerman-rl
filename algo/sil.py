@@ -33,14 +33,15 @@ class SIL:
         return num_updates
 
     def update(self, rollouts, index, replay=None):
-        value_loss, action_loss, dist_entropy = self.algo.update(rollouts, index)
+        value_loss, action_loss, dist_entropy, other = self.algo.update(rollouts, index)
 
         num_updates = self._calc_num_updates(index)
         if replay is not None and replay.num_steps > self.batch_size and num_updates:
             sil_value_loss, sil_action_loss = self.update_sil(replay, num_updates, self.epochs)
-            print("SIL: value_loss = {:.5f}, action_loss = {:.5f}".format(sil_value_loss, sil_action_loss))
+            other['sil_value_loss'] = sil_value_loss
+            other['sil_action_loss'] = sil_action_loss
 
-        return value_loss, action_loss, dist_entropy
+        return value_loss, action_loss, dist_entropy, other
 
     def update_sil(self, replay, num_updates_per_epoch=1, num_epochs=1):
         value_loss_epoch = 0
