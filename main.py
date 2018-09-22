@@ -72,16 +72,17 @@ def main():
     else:
         eval_envs = None
 
+    # FIXME this is very specific to Pommerman env right now
     actor_critic = create_policy(
         train_envs.observation_space,
         train_envs.action_space,
         name='pomm',
         nn_kwargs={
             'batch_norm': False if args.algo == 'acktr' else True,
-            'image_shape': [9, 11, 11],
             'recurrent': args.recurrent_policy,
             'hidden_size': 512,
-        })
+        },
+        train=True)
 
     actor_critic.to(device)
 

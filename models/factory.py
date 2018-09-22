@@ -3,7 +3,7 @@ from .model_generic import CNNBase, MLPBase
 from .policy import Policy
 
 
-def create_policy(obs_space, action_space, name='basic', nn_kwargs={}):
+def create_policy(obs_space, action_space, name='basic', nn_kwargs={}, train=True):
     nn = None
     obs_shape = obs_space.shape
     if name.lower() == 'basic':
@@ -19,6 +19,11 @@ def create_policy(obs_space, action_space, name='basic', nn_kwargs={}):
             **nn_kwargs)
     else:
         assert False and "Invalid policy name"
+
+    if train:
+        nn.train()
+    else:
+        nn.eval()
 
     policy = Policy(nn, action_space=action_space)
 

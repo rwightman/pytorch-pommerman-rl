@@ -21,19 +21,22 @@ class ConvNet4(nn.Module):
 
         self.conv1 = nn.Conv2d(input_shape[0], num_channels, 3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(num_channels, num_channels, 3, stride=1, padding=1)
-        self.conv3 = nn.Conv2d(num_channels, num_channels, 3, stride=1)
+        self.conv3 = nn.Conv2d(num_channels, num_channels, 3, stride=1, padding=1)
         self.conv4 = nn.Conv2d(num_channels, num_channels, 3, stride=1)
+        self.conv5 = nn.Conv2d(num_channels, num_channels, 3, stride=1)
 
         if self.batch_norm:
             self.bn1 = nn.BatchNorm2d(num_channels)
             self.bn2 = nn.BatchNorm2d(num_channels)
             self.bn3 = nn.BatchNorm2d(num_channels)
             self.bn4 = nn.BatchNorm2d(num_channels)
+            self.bn5 = nn.BatchNorm2d(num_channels)
         else:
             self.bn1 = lambda x: x
             self.bn2 = lambda x: x
             self.bn3 = lambda x: x
             self.bn4 = lambda x: x
+            self.bn5 = lambda x: x
 
         self.fc1 = nn.Linear(self.flattened_size, 1024)
         self.fc2 = nn.Linear(1024, output_size)
@@ -50,6 +53,8 @@ class ConvNet4(nn.Module):
         x = self.activation_fn(x)
         x = self.conv4(x)
         x = self.bn4(x)
+        x = self.conv5(x)
+        x = self.bn5(x)
         x = self.activation_fn(x)
         x = x.view(-1, self.flattened_size)
         x = self.fc1(x)
@@ -61,13 +66,17 @@ class ConvNet4(nn.Module):
 
 
 class PommNet(NNBase):
-    def __init__(self, obs_shape, image_shape, recurrent=False, hidden_size=512, batch_norm=True):
+    def __init__(self, obs_shape, recurrent=False, hidden_size=512, batch_norm=True):
         super(PommNet, self).__init__(recurrent, hidden_size, hidden_size)
         self.obs_shape = obs_shape
-        assert len(image_shape) == 3
-        self.image_shape = image_shape
-        assert np.prod(obs_shape) >= np.prod(image_shape)
-        self.other_shape = obs_shape - np.prod(image_shape)
+
+        # FIXME hacky, recover input shape from flattened observation space
+        # assuming an 11x11 board and 3 non spatial features
+        bs = 11
+        self.other_shape = [3]
+        input_channels = (obs_shape[0] - self.other_shape[0]) // (bs*bs)
+        self.image_shape = [input_channels, bs, bs]
+        assert np.prod(obs_shape) >= np.prod(self.image_shape)
 
         self.common_conv = ConvNet4(
             input_shape=self.image_shape,
@@ -87,8 +96,6 @@ class PommNet(NNBase):
             nn.Linear(hidden_size + hidden_size//4, 1),
             nn.Tanh()
         )
-
-        self.train()
 
     def forward(self, inputs, rnn_hxs, masks):
         inputs_image = inputs[:, :-self.other_shape[0]].view([-1] + self.image_shape)
