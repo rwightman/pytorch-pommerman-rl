@@ -8,7 +8,11 @@ It requires the Pommerman `playground` (https://github.com/MultiAgentLearning/pl
 
 ## Usage
 
-Very few experiments have been done so far, you can get a model training for FFA play, with poor results, using the following command:
+With the spatial feature representation and CNN based models, I've been able to train an agent FFA play that does quite well (> 95% win rate). Without reward shaping, it does not learn to bomb, but it does a great job of evading and letting the other agents blow themselves up.
 
-`python main.py --use-gae --env-name PommeFFACompetitionFast-v0 --no-norm --seed 42`
+`python main.py --use-gae --env-name PommeFFACompetitionFast-v0 --no-norm --seed 42 --algo a2c --lr-schedule 25000000`
+
+Below is a training curve for above command. Note that it shows the training reward (non-deterministic), not evaluation which is higher.
+
+![](results/training-conv4-FFA.jpg)
 
