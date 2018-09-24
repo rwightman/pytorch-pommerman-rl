@@ -26,12 +26,20 @@ parser.add_argument('--add-timestep', action='store_true', default=False,
                     help='add timestep to observations')
 parser.add_argument('--no-norm', action='store_true', default=False,
                     help='disables normalization')
+parser.add_argument('--no-cuda', action='store_true', default=False,
+                    help='disables CUDA')
 
 args = parser.parse_args()
+args.cuda = not args.no_cuda and torch.cuda.is_available()
 
-env = make_vec_envs(args.env_name, args.seed + 1000, 1, gamma=None, no_norm=args.no_norm,
+torch.set_num_threads(1)
+device = torch.device("cuda:0" if args.cuda else "cpu")
+
+num_env = 1
+env = make_vec_envs(args.env_name, args.seed + 1000,
+                    num_env, gamma=None, no_norm=args.no_norm,
                     num_stack=args.num_stack, log_dir=None, add_timestep=args.add_timestep,
-                    device='cpu', allow_early_resets=False)
+                    device=device, eval=True, allow_early_resets=False)
 
 # Get a render function
 render_func = None
@@ -60,26 +68,14 @@ actor_critic = create_policy(
         'batch_norm': True,
         'recurrent': args.recurrent_policy,
         'hidden_size': 512,
-    }, train=True)
+    },
+    train=False)
 
 actor_critic.load_state_dict(state_dict)
+actor_critic.to(device)
 
-if isinstance(env.venv, VecNormalize):
-    env.venv.ob_rms = ob_rms
-
-    # An ugly hack to remove updates
-    def _obfilt(self, obs):
-        if self.ob_rms:
-            obs = np.clip((obs - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon),
-                          -self.clipob, self.clipob)
-            return obs
-        else:
-            return obs
-
-    env.venv._obfilt = types.MethodType(_obfilt, env.venv)
-
-recurrent_hidden_states = torch.zeros(1, actor_critic.recurrent_hidden_state_size)
-masks = torch.zeros(1, 1)
+recurrent_hidden_states = torch.zeros(num_env, actor_critic.recurrent_hidden_state_size).to(device)
+masks = torch.zeros(num_env, 1).to(device)
 
 obs = env.reset()
 
@@ -99,10 +95,9 @@ while True:
         value, action, _, recurrent_hidden_states = actor_critic.act(
             obs, recurrent_hidden_states, masks, deterministic=True)
 
-    # Obser reward and next obs
     obs, reward, done, _ = env.step(action)
 
-    masks.fill_(0.0 if done else 1.0)
+    masks = torch.tensor([[0.0] if done_ else [1.0] for done_ in done]).to(device)
 
     if args.env_name.find('Bullet') > -1:
         if torsoId > -1:
@@ -110,6 +105,10 @@ while True:
             yaw = 0
             humanPos, humanOrn = p.getBasePositionAndOrientation(torsoId)
             p.resetDebugVisualizerCamera(distance, yaw, -20, humanPos)
+
+    for i, d in enumerate(done):
+        if d:
+            print(reward[i].item())
 
     if render_func is not None:
         render_func('human')

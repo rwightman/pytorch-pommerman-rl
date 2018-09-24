@@ -118,7 +118,7 @@ class ConvNet4(nn.Module):
 
 
 class PommNet(NNBase):
-    def __init__(self, obs_shape, recurrent=False, hidden_size=512, batch_norm=True, conv='conv4'):
+    def __init__(self, obs_shape, recurrent=False, hidden_size=512, batch_norm=True, cnn_config='conv4'):
         super(PommNet, self).__init__(recurrent, hidden_size, hidden_size)
         self.obs_shape = obs_shape
 
@@ -130,13 +130,13 @@ class PommNet(NNBase):
         self.image_shape = [input_channels, bs, bs]
         assert np.prod(obs_shape) >= np.prod(self.image_shape)
 
-        if conv == 'conv3':
+        if cnn_config == 'conv3':
             self.common_conv = ConvNet3(
                 input_shape=self.image_shape,
                 output_size=hidden_size,
                 batch_norm=batch_norm)
         else:
-            assert conv == 'conv4'
+            assert cnn_config == 'conv4'
             self.common_conv = ConvNet4(
                 input_shape=self.image_shape,
                 output_size=hidden_size,
