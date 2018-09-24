@@ -5,8 +5,62 @@ from .model_generic import NNBase
 import numpy as np
 
 
+class ConvNet3(nn.Module):
+    def __init__(
+            self, input_shape, num_channels=64, output_size=512,
+            batch_norm=True, activation_fn=F.relu, dilation=True):
+        super(ConvNet3, self).__init__()
+
+        assert len(input_shape) == 3
+        assert input_shape[1] == input_shape[2]
+        self.input_shape = input_shape
+        self.num_channels = num_channels
+        self.output_size = output_size
+        self.batch_norm = batch_norm
+        self.activation_fn = activation_fn
+        self.flattened_size = num_channels * (input_shape[1] - 2) * (input_shape[2] - 2)
+        self.drop_prob = 0.2
+
+        self.conv1 = nn.Conv2d(input_shape[0], num_channels, 5, stride=1, padding=2)
+        if dilation:
+            self.conv2 = nn.Conv2d(num_channels, num_channels, 3, stride=1, dilation=2, padding=2)
+        else:
+            self.conv2 = nn.Conv2d(num_channels, num_channels, 3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(num_channels, num_channels, 3, stride=1)
+
+        if self.batch_norm:
+            self.bn1 = nn.BatchNorm2d(num_channels)
+            self.bn2 = nn.BatchNorm2d(num_channels)
+            self.bn3 = nn.BatchNorm2d(num_channels)
+        else:
+            self.bn1 = lambda x: x
+            self.bn2 = lambda x: x
+            self.bn3 = lambda x: x
+
+        self.fc1 = nn.Linear(self.flattened_size, 1024)
+        self.fc2 = nn.Linear(1024, output_size)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.activation_fn(x)
+        x = self.conv2(x)
+        x = self.bn2(x)
+        x = self.activation_fn(x)
+        x = self.conv3(x)
+        x = self.bn3(x)
+        x = self.activation_fn(x)
+        x = x.view(-1, self.flattened_size)
+        x = self.fc1(x)
+        x = self.activation_fn(x)
+        out = self.fc2(x)
+
+        return out
+
+
 class ConvNet4(nn.Module):
-    def __init__(self, input_shape, num_channels=64, output_size=512, batch_norm=True, activation_fn=F.relu):
+    def __init__(self, input_shape, num_channels=64, output_size=512,
+                 batch_norm=True, activation_fn=F.relu, dilation=False):
         super(ConvNet4, self).__init__()
 
         assert len(input_shape) == 3
@@ -20,23 +74,23 @@ class ConvNet4(nn.Module):
         self.drop_prob = 0.2
 
         self.conv1 = nn.Conv2d(input_shape[0], num_channels, 3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(num_channels, num_channels, 3, stride=1, padding=1)
-        self.conv3 = nn.Conv2d(num_channels, num_channels, 3, stride=1, padding=1)
+        if dilation:
+            self.conv2 = nn.Conv2d(num_channels, num_channels, 3, stride=1, dilation=2, padding=2)
+        else:
+            self.conv2 = nn.Conv2d(num_channels, num_channels, 3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(num_channels, num_channels, 3, stride=1)
         self.conv4 = nn.Conv2d(num_channels, num_channels, 3, stride=1)
-        self.conv5 = nn.Conv2d(num_channels, num_channels, 3, stride=1)
 
         if self.batch_norm:
             self.bn1 = nn.BatchNorm2d(num_channels)
             self.bn2 = nn.BatchNorm2d(num_channels)
             self.bn3 = nn.BatchNorm2d(num_channels)
             self.bn4 = nn.BatchNorm2d(num_channels)
-            self.bn5 = nn.BatchNorm2d(num_channels)
         else:
             self.bn1 = lambda x: x
             self.bn2 = lambda x: x
             self.bn3 = lambda x: x
             self.bn4 = lambda x: x
-            self.bn5 = lambda x: x
 
         self.fc1 = nn.Linear(self.flattened_size, 1024)
         self.fc2 = nn.Linear(1024, output_size)
@@ -53,8 +107,6 @@ class ConvNet4(nn.Module):
         x = self.activation_fn(x)
         x = self.conv4(x)
         x = self.bn4(x)
-        x = self.conv5(x)
-        x = self.bn5(x)
         x = self.activation_fn(x)
         x = x.view(-1, self.flattened_size)
         x = self.fc1(x)
@@ -66,7 +118,7 @@ class ConvNet4(nn.Module):
 
 
 class PommNet(NNBase):
-    def __init__(self, obs_shape, recurrent=False, hidden_size=512, batch_norm=True):
+    def __init__(self, obs_shape, recurrent=False, hidden_size=512, batch_norm=True, conv='conv4'):
         super(PommNet, self).__init__(recurrent, hidden_size, hidden_size)
         self.obs_shape = obs_shape
 
@@ -78,10 +130,17 @@ class PommNet(NNBase):
         self.image_shape = [input_channels, bs, bs]
         assert np.prod(obs_shape) >= np.prod(self.image_shape)
 
-        self.common_conv = ConvNet4(
-            input_shape=self.image_shape,
-            output_size=hidden_size,
-            batch_norm=batch_norm)
+        if conv == 'conv3':
+            self.common_conv = ConvNet3(
+                input_shape=self.image_shape,
+                output_size=hidden_size,
+                batch_norm=batch_norm)
+        else:
+            assert conv == 'conv4'
+            self.common_conv = ConvNet4(
+                input_shape=self.image_shape,
+                output_size=hidden_size,
+                batch_norm=batch_norm)
 
         self.common_mlp = nn.Sequential(
             nn.Linear(self.other_shape[0], hidden_size//4),
